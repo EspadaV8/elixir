@@ -28,7 +28,6 @@ elixir.extend('version', function(src, buildDir) {
     return this.queueTask('version');
 });
 
-
 /**
  * Build the "version" Gulp task.
  *
@@ -44,9 +43,7 @@ var buildTask = function(src, buildDir) {
 
         utilities.logTask("Versioning", src);
 
-        // To start, we'll clear out the build directory,
-        // so that we can start from scratch.
-        del.sync(buildDir + '/*', { force: true });
+        deletePreviousVersion(buildDir);
 
         return gulp.src(src, { base: './public' })
             .pipe(gulp.dest(buildDir))
@@ -56,17 +53,11 @@ var buildTask = function(src, buildDir) {
             .pipe(rev.manifest())
             .pipe(gulp.dest(buildDir))
             .on('end', function() {
-                // We'll get rid of the duplicated file that
-                // usually gets put in the "build" folder,
-                // alongside the suffixed version.
-                del(files.paths);
-
-                // We'll also copy over relevant sourcemap files.
+                // Copy over relevant sourcemap files.
                 copyMaps(src, buildDir);
             });
     });
 };
-
 
 /**
  * Prepare the path to the build directory.
@@ -75,9 +66,8 @@ var buildTask = function(src, buildDir) {
  * @return {string}
  */
 var getBuildDir = function(buildDir) {
-    return buildDir ? buildDir + '/build' : 'public/build';
+    return buildDir ? buildDir : 'public/build';
 };
-
 
 /**
  * Copy source maps to the build directory.
@@ -105,6 +95,25 @@ var copyMaps = function(src, buildDir) {
     mappings.forEach(function(mapping) {
         var map = mapping.replace('public', buildDir);
 
-        gulp.src(mapping).pipe(gulp.dest(parsePath(map).dirname));
+        if (map !== mapping) {
+            gulp.src(mapping).pipe(gulp.dest(parsePath(map).dirname));
+        }
     });
+};
+
+/**
+ * Deletes previously versioned files defined within the rev-manifest file
+ *
+ * @param  {string} buildDir
+ */
+var deletePreviousVersion = function (buildDir) {
+    var revManifest = buildDir + '/rev-manifest.json';
+
+    if (fs.existsSync(revManifest)) {
+        var files = JSON.parse(fs.readFileSync(revManifest, 'utf8'));
+
+        for (var file in files) {
+            del.sync(buildDir + '/' + files[file], {force: true});
+        }
+    }
 };
