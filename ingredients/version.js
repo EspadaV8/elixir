@@ -55,6 +55,9 @@ var buildTask = function(src, buildDir) {
             .on('end', function() {
                 // Copy over relevant sourcemap files.
                 copyMaps(src, buildDir);
+
+                // Delete pre-versioned files
+                deletePreVersionedFiles(src, buildDir);
             });
     });
 };
@@ -96,7 +99,11 @@ var copyMaps = function(src, buildDir) {
         var map = mapping.replace('public', buildDir);
 
         if (map !== mapping) {
-            gulp.src(mapping).pipe(gulp.dest(parsePath(map).dirname));
+            gulp.src(mapping)
+                .pipe(gulp.dest(parsePath(map).dirname))
+                .on('end', function() {
+                    del.sync(mapping);
+                });
         }
     });
 };
@@ -117,3 +124,22 @@ var deletePreviousVersion = function (buildDir) {
         }
     }
 };
+
+/**
+ * Deletes original files that were versioned
+ *
+ * @param  {string} src
+ * @param  {string} buildDir
+ */
+var deletePreVersionedFiles = function (src, buildDir) {
+    for (var i in src) {
+        var file = src[i],
+            duplicateCopy = file.replace('public', buildDir);
+
+        del.sync(file, {force: true});
+
+        if (fs.existsSync(duplicateCopy)) {
+            del.sync(duplicateCopy, {force: true});
+        }
+    }
+}
